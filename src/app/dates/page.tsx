@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { createServerClient } from "@/lib/supabase";
 import DateCard from "@/components/alphabet/DateCard";
 import type { AlphabetDateRow } from "@/types/alphabet";
@@ -14,10 +15,21 @@ export default async function Page() {
   return (
     <main className="p-6">
       <div className="flex items-center justify-between gap-4 mb-6">
-        <h1 className="text-3xl font-semibold">Alphabet Dates</h1>
-        <a href="/invite" className="px-4 py-2 rounded border border-black">
-          Invite
-        </a>
+        <h1 className="text-3xl font-semibold">Dates</h1>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/invite"
+            className="px-4 py-2 rounded border border-black"
+          >
+            Invite
+          </Link>
+          <Link
+            href="/dates/new"
+            className="px-4 py-2 rounded bg-black text-white"
+          >
+            New date
+          </Link>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {alphabetDates.map((date) => (
