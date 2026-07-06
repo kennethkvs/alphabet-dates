@@ -7,7 +7,7 @@ export default function UploadPhotos({ dateId }: Props) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,9 +51,9 @@ export default function UploadPhotos({ dateId }: Props) {
       >
         {loading ? "Uploading…" : "Upload"}
       </button>
-      {result && (
+      {result ? (
         <pre className="mt-2 text-xs">{JSON.stringify(result, null, 2)}</pre>
-      )}
+      ) : null}
     </form>
   );
 }

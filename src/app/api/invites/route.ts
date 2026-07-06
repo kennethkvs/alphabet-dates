@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import crypto from "crypto";
+import type { InviteRow } from "@/types/alphabet";
 
 const server = createServerClient();
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as {
+      email?: string;
+      invitedByEmail?: string;
+    };
     const { email, invitedByEmail } = body;
     if (!email)
       return NextResponse.json({ error: "Missing email" }, { status: 400 });
@@ -20,7 +24,8 @@ export async function POST(request: Request) {
         .eq("email", invitedByEmail)
         .limit(1)
         .maybeSingle();
-      invited_by = (inviter as any)?.id || null;
+      const inviterRecord = inviter as { id: string } | null;
+      invited_by = inviterRecord?.id || null;
     }
 
     const token = crypto.randomBytes(24).toString("hex");
@@ -36,15 +41,17 @@ export async function POST(request: Request) {
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
 
+    const invite = data as InviteRow;
+
     const site = process.env.NEXT_PUBLIC_SITE_URL || "";
     const url = site
       ? `${site.replace(/\/$/, "")}/invite/accept/${token}`
       : `/invite/accept/${token}`;
 
-    return NextResponse.json({ invite: data, url }, { status: 201 });
-  } catch (err: any) {
+    return NextResponse.json({ invite, url }, { status: 201 });
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || String(err) },
+      { error: err instanceof Error ? err.message : String(err) },
       { status: 500 },
     );
   }

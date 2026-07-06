@@ -15,7 +15,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as {
+      letter: string;
+      title: string;
+      description?: string | null;
+      scheduled_at?: string | null;
+    };
     const toInsert = {
       letter: body.letter,
       title: body.title,
@@ -30,7 +35,10 @@ export async function POST(request: Request) {
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 400 },
+    );
   }
 }

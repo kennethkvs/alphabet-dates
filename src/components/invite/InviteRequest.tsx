@@ -1,10 +1,11 @@
 "use client";
 import React, { useState } from "react";
+import type { ApiMessage } from "@/types/alphabet";
 
 export default function InviteRequest() {
   const [email, setEmail] = useState("");
   const [invitedBy, setInvitedBy] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ApiMessage | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -26,18 +27,17 @@ export default function InviteRequest() {
   }
 
   return (
-    <div className="p-4 max-w-md">
-      <h2 className="text-xl font-semibold mb-3">Request an invite</h2>
+    <div className="max-w-md space-y-3">
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
           className="w-full p-2 border rounded"
-          placeholder="Your email"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
           className="w-full p-2 border rounded"
-          placeholder="Invited by (email, optional)"
+          placeholder="Invited by email (optional)"
           value={invitedBy}
           onChange={(e) => setInvitedBy(e.target.value)}
         />
@@ -49,13 +49,8 @@ export default function InviteRequest() {
         </button>
       </form>
       {result && (
-        <div className="mt-3 p-2 bg-gray-50 border rounded text-sm">
-          <div>
-            Invite created. Share this acceptance link with the invitee:
-          </div>
-          <pre className="break-words mt-2">
-            {result.url || JSON.stringify(result)}
-          </pre>
+        <div className="p-2 border rounded text-sm break-all">
+          {result.url || JSON.stringify(result)}
         </div>
       )}
     </div>

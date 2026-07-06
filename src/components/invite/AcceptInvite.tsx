@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import type { ApiMessage } from "@/types/alphabet";
 
 type Props = { token: string };
 
@@ -7,7 +8,7 @@ export default function AcceptInvite({ token }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ApiMessage | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,8 +30,7 @@ export default function AcceptInvite({ token }: Props) {
   }
 
   return (
-    <div className="p-4 max-w-md">
-      <h2 className="text-xl font-semibold mb-3">Accept Invite</h2>
+    <div className="max-w-md space-y-3">
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
           type="password"
@@ -53,7 +53,9 @@ export default function AcceptInvite({ token }: Props) {
           {loading ? "Creating account…" : "Create account"}
         </button>
       </form>
-      {result && <div className="mt-3 text-sm">{JSON.stringify(result)}</div>}
+      {result && (
+        <div className="text-sm break-all">{JSON.stringify(result)}</div>
+      )}
     </div>
   );
 }

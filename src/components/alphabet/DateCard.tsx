@@ -1,9 +1,10 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import type { AlphabetDateRow } from "@/types/alphabet";
 
 type Props = {
-  date: any;
+  date: AlphabetDateRow;
 };
 
 export default function DateCard({ date }: Props) {
@@ -20,7 +21,7 @@ export default function DateCard({ date }: Props) {
           )}
         </div>
         <div className="flex flex-col gap-2">
-          <Link href={`/alphabet-dates/${date.id}`} className="text-indigo-600">
+          <Link href={`/dates/${date.id}`} className="text-indigo-600">
             View
           </Link>
         </div>

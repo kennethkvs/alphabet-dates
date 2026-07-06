@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import sharp from "sharp";
+import type { PhotoRow } from "@/types/alphabet";
 
 const server = createServerClient();
 const BUCKET = "alphabet-dates";
@@ -29,7 +30,16 @@ export async function POST(request: Request) {
         { status: 400 },
       );
 
-    const results: any[] = [];
+    type UploadResult = {
+      photo: PhotoRow;
+      urls: {
+        thumb: string;
+        medium: string;
+        original: string;
+      };
+    };
+
+    const results: UploadResult[] = [];
 
     for (const file of files) {
       if (!ALLOWED.includes(file.type))
@@ -59,12 +69,10 @@ export async function POST(request: Request) {
       await server.storage
         .from(BUCKET)
         .upload(pathThumb, thumb, { contentType: "image/jpeg", upsert: true });
-      await server.storage
-        .from(BUCKET)
-        .upload(pathMedium, medium, {
-          contentType: "image/jpeg",
-          upsert: true,
-        });
+      await server.storage.from(BUCKET).upload(pathMedium, medium, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
       await server.storage
         .from(BUCKET)
         .upload(pathOriginal, buffer, { contentType: file.type, upsert: true });
@@ -84,6 +92,7 @@ export async function POST(request: Request) {
         .select()
         .single();
       if (error) throw error;
+      const photo = data as PhotoRow;
 
       // generate signed urls
       const expiresIn = 60 * 60; // 1 hour
@@ -98,19 +107,19 @@ export async function POST(request: Request) {
         .createSignedUrl(pathOriginal, expiresIn);
 
       results.push({
-        photo: data,
+        photo,
         urls: {
-          thumb: thumbUrl?.signedUrl,
-          medium: mediumUrl?.signedUrl,
-          original: originalUrl?.signedUrl,
+          thumb: thumbUrl?.signedUrl || "",
+          medium: mediumUrl?.signedUrl || "",
+          original: originalUrl?.signedUrl || "",
         },
       });
     }
 
     return NextResponse.json({ results });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || String(err) },
+      { error: err instanceof Error ? err.message : String(err) },
       { status: 500 },
     );
   }
