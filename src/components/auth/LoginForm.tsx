@@ -34,36 +34,44 @@ export default function LoginForm({ nextPath = "/dates" }: Props) {
   }
 
   return (
-    <form onSubmit={signIn} className="space-y-3">
-      <input
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-        className="block w-full border px-3 py-2 rounded"
-      />
-      <input
-        type="password"
-        required
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        className="block w-full border px-3 py-2 rounded"
-      />
-      {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          className="px-4 py-2 bg-indigo-600 text-white rounded"
-          disabled={loading}
-        >
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
-        <a href="/invite" className="text-sm text-gray-600">
-          Invite
-        </a>
-      </div>
+    <form onSubmit={signIn} className="mt-8 space-y-5">
+      <label className="block">
+        <span className="font-hand text-lg text-burgundy">your email</span>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 w-full border-0 border-b-2 border-navy/30 bg-transparent px-1 py-2 font-body text-lg text-navy placeholder:text-ink/30 focus:border-burgundy focus:outline-none focus:ring-0"
+          placeholder="you@ouralphabet.love"
+        />
+      </label>
+
+      <label className="block">
+        <span className="font-hand text-lg text-burgundy">password</span>
+        <input
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 w-full border-0 border-b-2 border-navy/30 bg-transparent px-1 py-2 font-body text-lg text-navy placeholder:text-ink/30 focus:border-burgundy focus:outline-none focus:ring-0"
+          placeholder="our secret"
+        />
+      </label>
+
+      {error && (
+        <div className="flex items-center gap-2 pt-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+          <span className="font-hand text-base text-navy">{error}</span>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        className="mt-2 w-full rounded-sm bg-burgundy px-6 py-3 font-display text-base tracking-wide text-cream shadow-md transition-colors hover:bg-burgundy-deep"
+      >
+        {loading ? "Opening..." : "Open the scrapbook →"}
+      </button>
     </form>
   );
 }
