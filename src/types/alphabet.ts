@@ -59,3 +59,10 @@ export type ApiMessage = {
 export type Filter = "all" | DateStatus | "empty";
 
 export type DateStatus = "completed" | "planned";
+
+export const dateOptions: Intl.DateTimeFormatOptions = {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+};

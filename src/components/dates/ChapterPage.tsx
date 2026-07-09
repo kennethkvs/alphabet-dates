@@ -4,7 +4,12 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { AlphabetDateRow, DateStatus, PhotoRow } from "@/types/alphabet";
+import {
+  AlphabetDateRow,
+  dateOptions,
+  DateStatus,
+  PhotoRow,
+} from "@/types/alphabet";
 import { useState } from "react";
 import Polaroid from "./Polaroid";
 import AddPhotoDialog from "./AddPhotoDialog";
@@ -184,7 +189,11 @@ function ChapterPage({
                   )}
                   {chapter.scheduled_at && (
                     <span className="font-hand text-lg text-navy">
-                      📅 {chapter.scheduled_at}
+                      📅{" "}
+                      {new Date(chapter.scheduled_at).toLocaleDateString(
+                        undefined,
+                        dateOptions,
+                      )}
                     </span>
                   )}
                   {chapter.location && (

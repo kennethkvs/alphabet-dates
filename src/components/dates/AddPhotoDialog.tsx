@@ -88,7 +88,7 @@ function AddPhotoDialog({
               type="file"
               accept="image/*"
               onChange={(e) => setFile(e.target.files)}
-              className="mt-1 border-navy/25 bg-cream-deep/60 font-body"
+              className="mt-1 border-navy/25 bg-cream-deep/60 font-body text-navy file:text-navy"
             />
           </div>
 
@@ -98,7 +98,7 @@ function AddPhotoDialog({
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="a little handwritten note"
-              className="mt-1 border-navy/25 bg-cream-deep/60"
+              className="mt-1 border-navy/25 bg-cream-deep/60 text-navy placeholder:text-navy/50"
             />
           </div>
         </div>
