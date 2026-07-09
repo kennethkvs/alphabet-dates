@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Lora, Caveat } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -34,7 +35,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${lora.variable} ${caveat.variable} h-full antialiased`}
+      className={cn(
+        "h-full",
+        "antialiased",
+        playfair.variable,
+        lora.variable,
+        caveat.variable,
+      )}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
