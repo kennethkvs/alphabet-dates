@@ -1,26 +1,217 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --radius: 0.5rem;
+
+  /* Scrapbook palette */
+  --navy: oklch(0.28 0.06 265);
+  --navy-deep: oklch(0.2 0.055 265);
+  --burgundy: oklch(0.38 0.13 20);
+  --burgundy-deep: oklch(0.3 0.12 20);
+  --cream: oklch(0.94 0.028 85);
+  --cream-deep: oklch(0.88 0.04 82);
+  --gold: oklch(0.72 0.11 78);
+  --gold-soft: oklch(0.82 0.08 82);
+  --ink: oklch(0.22 0.02 60);
+
+  --background: var(--cream);
+  --foreground: var(--ink);
+  --card: oklch(0.96 0.02 85);
+  --card-foreground: var(--ink);
+  --popover: var(--cream);
+  --popover-foreground: var(--ink);
+  --primary: var(--navy);
+  --primary-foreground: var(--cream);
+  --secondary: var(--burgundy);
+  --secondary-foreground: var(--cream);
+  --muted: var(--cream-deep);
+  --muted-foreground: oklch(0.42 0.03 60);
+  --accent: var(--gold);
+  --accent-foreground: var(--ink);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: var(--cream);
+  --border: oklch(0.78 0.04 75);
+  --input: oklch(0.85 0.03 78);
+  --ring: var(--gold);
 }
 
 @theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Scrapbook semantic tokens */
+  --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
+  --color-burgundy: var(--burgundy);
+  --color-burgundy-deep: var(--burgundy-deep);
+  --color-cream: var(--cream);
+  --color-cream-deep: var(--cream-deep);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-ink: var(--ink);
+
+  --font-display: var(--font-playfair), ui-serif, Georgia, serif;
+  --font-body: var(--font-lora), ui-serif, Georgia, serif;
+  --font-hand: var(--font-caveat), ui-serif, cursive;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--navy-deep);
+    --foreground: var(--cream);
+    --card: var(--navy);
+    --card-foreground: var(--cream);
+    --popover: var(--navy);
+    --popover-foreground: var(--cream);
+    --primary: var(--gold);
+    --primary-foreground: var(--navy-deep);
+    --secondary: var(--burgundy);
+    --secondary-foreground: var(--cream);
+    --muted: oklch(0.25 0.04 265);
+    --muted-foreground: oklch(0.75 0.03 82);
+    --accent: var(--gold-soft);
+    --accent-foreground: var(--navy-deep);
+    --border: oklch(0.35 0.04 265);
+    --input: oklch(0.35 0.04 265);
+    --ring: var(--gold);
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  /* paper grain */
+  background-image:
+    radial-gradient(at 20% 30%, oklch(0.9 0.05 80 / 0.35) 0, transparent 40%),
+    radial-gradient(at 80% 70%, oklch(0.86 0.06 40 / 0.2) 0, transparent 45%),
+    repeating-linear-gradient(
+      43deg,
+      oklch(0.88 0.03 80 / 0.06) 0 2px,
+      transparent 2px 5px
+    );
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+@utility paper {
+  background-color: var(--color-cream);
+  background-image:
+    radial-gradient(at 15% 20%, oklch(0.98 0.02 85 / 0.7) 0, transparent 55%),
+    radial-gradient(at 85% 80%, oklch(0.82 0.06 45 / 0.2) 0, transparent 55%),
+    repeating-linear-gradient(
+      37deg,
+      oklch(0.8 0.04 80 / 0.05) 0 2px,
+      transparent 2px 6px
+    );
+  box-shadow:
+    inset 0 0 60px oklch(0.7 0.06 45 / 0.15),
+    0 1px 2px oklch(0 0 0 / 0.06);
+}
+
+@utility deckle {
+  clip-path: polygon(
+    0% 2%,
+    3% 0%,
+    8% 1.5%,
+    14% 0%,
+    22% 1%,
+    30% 0%,
+    38% 1.5%,
+    46% 0%,
+    54% 1%,
+    62% 0%,
+    70% 1.5%,
+    78% 0%,
+    86% 1%,
+    94% 0%,
+    100% 2%,
+    99% 8%,
+    100% 16%,
+    99% 24%,
+    100% 32%,
+    99% 40%,
+    100% 48%,
+    99% 56%,
+    100% 64%,
+    99% 72%,
+    100% 80%,
+    99% 88%,
+    100% 96%,
+    97% 100%,
+    90% 99%,
+    82% 100%,
+    74% 98%,
+    66% 100%,
+    58% 99%,
+    50% 100%,
+    42% 98%,
+    34% 100%,
+    26% 99%,
+    18% 100%,
+    10% 98%,
+    3% 100%,
+    0% 97%,
+    1% 90%,
+    0% 82%,
+    1% 74%,
+    0% 66%,
+    1% 58%,
+    0% 50%,
+    1% 42%,
+    0% 34%,
+    1% 26%,
+    0% 18%,
+    1% 10%
+  );
+}
+
+@utility tape {
+  position: relative;
+  background: oklch(0.9 0.09 90 / 0.75);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.15);
+  border-left: 1px dashed oklch(0.75 0.09 90 / 0.5);
+  border-right: 1px dashed oklch(0.75 0.09 90 / 0.5);
+}
+
+@utility ink-underline {
+  background-image: linear-gradient(
+    to right,
+    var(--color-burgundy) 0,
+    var(--color-burgundy) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  padding-bottom: 2px;
 }
