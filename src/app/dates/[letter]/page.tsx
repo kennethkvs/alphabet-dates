@@ -1,4 +1,3 @@
-import React from "react";
 import { createServerClient } from "@/lib/supabase";
 import Link from "next/link";
 import UploadPhotos from "@/components/alphabet/UploadPhotos";
@@ -8,19 +7,19 @@ import DateImages from "@/components/dates/DateImages";
 export default async function DatePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ letter: string }>;
 }) {
   const server = createServerClient();
-  const { id: dateId } = await params;
+  const { letter } = await params;
   const { data: dateData }: { data: AlphabetDateRow | null } = await server
     .from("alphabet_dates")
     .select("*")
-    .eq("id", dateId)
+    .eq("letter", letter)
     .maybeSingle();
   const { data: dateImages }: { data: PhotoRow[] | null } = await server
     .from("photos")
     .select("*")
-    .eq("date_id", dateId);
+    .eq("date_id", dateData?.id);
 
   if (!dateData) return <div className="p-6">Date not found.</div>;
   return (

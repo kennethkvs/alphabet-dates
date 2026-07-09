@@ -2,6 +2,8 @@ export type AlphabetDate = {
   id: string;
   letter: string;
   title: string;
+  status: DateStatus | null;
+  location: string | null;
   description?: string | null;
   scheduled_at?: string | null;
   completed_at?: string | null;
@@ -55,3 +57,7 @@ export type ApiMessage = {
   ok?: boolean;
   url?: string;
 };
+
+export type Filter = "all" | DateStatus | "empty";
+
+export type DateStatus = "completed" | "planned";
