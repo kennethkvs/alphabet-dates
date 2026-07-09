@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import Polaroid from "./Polaroid";
 import AddPhotoDialog from "./AddPhotoDialog";
+import { DatePickerInput } from "../ui/datepicker";
 
 const MAX_PHOTOS = 5;
 
@@ -139,7 +140,7 @@ function ChapterPage({
                         status: (e.target.value || null) as DateStatus | null,
                       }))
                     }
-                    className="mt-1 w-full rounded-sm border border-navy/25 bg-cream-deep px-2 py-1.5 font-body text-sm text-navy"
+                    className="mt-1 h-9 w-full rounded-lg border border-navy/25 bg-cream-deep px-2 py-1.5 font-body text-sm text-navy"
                   >
                     <option value="">—</option>
                     <option value="planned">planned</option>
@@ -147,19 +148,16 @@ function ChapterPage({
                   </select>
                 </div>
                 <div>
-                  <Label className="font-hand text-sm text-burgundy">
-                    date
-                  </Label>
-                  <Input
-                    value={chapter.completed_at ?? chapter.scheduled_at ?? ""}
-                    onChange={(e) =>
+                  <DatePickerInput
+                    label="date"
+                    formValue={new Date(chapter.scheduled_at || new Date())}
+                    placeholder="e.g. Feb 14, 2027"
+                    handleDateChange={(date) =>
                       setChapter((c) => ({
                         ...c,
-                        scheduled_at: e.target.value || null,
+                        scheduled_at: date.toISOString(),
                       }))
                     }
-                    placeholder="e.g. Feb 14, 2024"
-                    className="mt-1 h-9 border-navy/25 bg-cream-deep"
                   />
                 </div>
                 <div>
@@ -175,7 +173,7 @@ function ChapterPage({
                       }))
                     }
                     placeholder="somewhere lovely"
-                    className="mt-1 h-9 border-navy/25 bg-cream-deep"
+                    className="mt-1 h-9 border-navy/25 bg-cream-deep text-sm"
                   />
                 </div>
               </div>
