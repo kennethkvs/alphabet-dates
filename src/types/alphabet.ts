@@ -4,10 +4,7 @@ export type AlphabetDate = {
   title: string;
   status: DateStatus | null;
   location: string | null;
-  description?: string | null;
-  scheduled_at?: string | null;
-  completed_at?: string | null;
-  created_at?: string;
+  note: string | null;
 };
 
 export type AlphabetDateRow = AlphabetDate & {
@@ -37,6 +34,7 @@ export type PhotoRow = {
   thumb_path: string;
   medium_path: string;
   original_path: string;
+  image_url: string;
   caption?: string | null;
   created_at?: string | null;
 };

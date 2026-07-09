@@ -1,8 +1,7 @@
 import { createServerClient } from "@/lib/supabase";
 import Link from "next/link";
-import UploadPhotos from "@/components/alphabet/UploadPhotos";
 import { AlphabetDateRow, PhotoRow } from "@/types/alphabet";
-import DateImages from "@/components/dates/DateImages";
+import ChapterPage from "@/components/dates/ChapterPage";
 
 export default async function DatePage({
   params,
@@ -20,40 +19,37 @@ export default async function DatePage({
     .from("photos")
     .select("*")
     .eq("date_id", dateData?.id);
-
-  if (!dateData) return <div className="p-6">Date not found.</div>;
-  return (
-    <main className="p-6">
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-semibold">
-          {dateData.letter} — {dateData.title}
-        </h1>
-        <Link href="/dates" className="px-4 py-2 rounded border border-black">
-          Back
-        </Link>
-      </div>
-      <h2 className="text-lg font-semibold mb-2">
-        {dateData.description} -{" "}
-        {dateData.scheduled_at
-          ? `Scheduled: ${new Date(dateData.scheduled_at).toLocaleDateString()}`
-          : "Not scheduled"}
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {dateImages?.map((image) => (
-          <DateImages key={image.id} image={image} />
-        ))}
-      </div>
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/dates/${dateData.id}/edit`}
-          className="px-4 py-2 rounded bg-black text-white"
-        >
-          Edit
-        </Link>
-      </div>
-      <section className="mt-6">
-        <UploadPhotos dateId={dateData.id} />
-      </section>
-    </main>
+  const dateImagesWithUrls = await Promise.all(
+    dateImages?.map(async (image) => {
+      const signedImageUrl = await server.storage
+        .from("alphabet-dates")
+        .createSignedUrl(image.medium_path, 3600);
+      return {
+        ...image,
+        image_url: signedImageUrl.data?.signedUrl || "",
+      };
+    }) || [],
   );
+
+  if (!dateData)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream px-4">
+        <div className="text-center">
+          <h1 className="font-display text-4xl text-navy">
+            That letter isn't in our alphabet
+          </h1>
+          <p className="mt-2 font-hand text-2xl text-burgundy">
+            try A through Z
+          </p>
+          <Link
+            href="/dates"
+            className="mt-6 inline-block rounded-sm bg-navy px-5 py-2.5 text-cream hover:bg-navy-deep"
+          >
+            Back to table of contents
+          </Link>
+        </div>
+      </div>
+    );
+
+  return <ChapterPage chapterData={dateData} photos={dateImagesWithUrls} />;
 }
