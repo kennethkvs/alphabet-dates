@@ -27,15 +27,13 @@ export async function POST(request: Request) {
     if (files.length > MAX_FILES)
       return NextResponse.json(
         { error: `Max ${MAX_FILES} files allowed` },
-        { status: 400 },
+        { status: 400 }
       );
 
     type UploadResult = {
       photo: PhotoRow;
       urls: {
-        thumb: string;
         medium: string;
-        original: string;
       };
     };
 
@@ -45,45 +43,35 @@ export async function POST(request: Request) {
       if (!ALLOWED.includes(file.type))
         return NextResponse.json(
           { error: "Invalid file type" },
-          { status: 400 },
+          { status: 400 }
         );
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       if (buffer.length > MAX_BYTES)
         return NextResponse.json({ error: "File too large" }, { status: 400 });
 
-      const filenameBase = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-]/g, "_")}`;
+      const filenameBase = `${Date.now()}-${file.name.replace(
+        /[^a-zA-Z0-9.\-]/g,
+        "_"
+      )}`;
       // create variants
-      const thumb = await sharp(buffer)
-        .resize({ width: 150, withoutEnlargement: true })
-        .toBuffer();
       const medium = await sharp(buffer)
         .resize({ width: 800, withoutEnlargement: true })
         .toBuffer();
 
-      const pathThumb = `${dateId}/${filenameBase}-thumb.jpg`;
       const pathMedium = `${dateId}/${filenameBase}-medium.jpg`;
-      const pathOriginal = `${dateId}/${filenameBase}-original${getExt(file.type)}`;
 
       // upload buffers to Supabase Storage
-      await server.storage
-        .from(BUCKET)
-        .upload(pathThumb, thumb, { contentType: "image/jpeg", upsert: true });
       await server.storage.from(BUCKET).upload(pathMedium, medium, {
         contentType: "image/jpeg",
         upsert: true,
       });
-      await server.storage
-        .from(BUCKET)
-        .upload(pathOriginal, buffer, { contentType: file.type, upsert: true });
 
       // insert metadata into 'photos' table
       const meta = {
         date_id: dateId,
         filename: filenameBase,
-        thumb_path: pathThumb,
         medium_path: pathMedium,
-        original_path: pathOriginal,
         caption: (form.get("caption") as string) || null,
       };
       const { data, error } = await server
@@ -96,42 +84,20 @@ export async function POST(request: Request) {
 
       // generate signed urls
       const expiresIn = 60 * 60; // 1 hour
-      const { data: thumbUrl } = await server.storage
-        .from(BUCKET)
-        .createSignedUrl(pathThumb, expiresIn);
       const { data: mediumUrl } = await server.storage
         .from(BUCKET)
         .createSignedUrl(pathMedium, expiresIn);
-      const { data: originalUrl } = await server.storage
-        .from(BUCKET)
-        .createSignedUrl(pathOriginal, expiresIn);
 
       results.push({
         photo,
         urls: {
-          thumb: thumbUrl?.signedUrl || "",
           medium: mediumUrl?.signedUrl || "",
-          original: originalUrl?.signedUrl || "",
         },
       });
     }
 
     return NextResponse.json({ results });
   } catch (err: unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
-  }
-}
-
-function getExt(mime: string) {
-  switch (mime) {
-    case "image/png":
-      return ".png";
-    case "image/webp":
-      return ".webp";
-    default:
-      return ".jpg";
+    return NextResponse.json({ error: err }, { status: 500 });
   }
 }

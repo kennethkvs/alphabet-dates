@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function Page() {
   const [alphabetDates, setAlphabetDates] = useState<AlphabetDateRow[] | null>(
-    null,
+    null
   );
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function Page() {
   const [filter, setFilter] = useState<Filter>("all");
   const stats = useMemo(() => {
     const completed = alphabetDates?.filter(
-      (c) => c.status === "completed",
+      (c) => c.status === "completed"
     ).length;
     const planned = alphabetDates?.filter((c) => c.status === "planned").length;
     return { completed, planned, total: 26 };

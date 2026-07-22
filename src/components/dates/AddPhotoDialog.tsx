@@ -50,7 +50,7 @@ function AddPhotoDialog({
       if (res.ok) {
         reset();
         onOpenChange(false);
-        window.location.reload();
+        // window.location.reload();
       }
     } catch (err) {
       console.error(err);
@@ -58,7 +58,7 @@ function AddPhotoDialog({
       setLoading(false);
       reset();
       onOpenChange(false);
-      window.location.reload();
+      // window.location.reload();
     }
   }
 

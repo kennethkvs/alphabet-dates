@@ -1,42 +1,23 @@
-export type AlphabetDate = {
+export type AlphabetDateRow = {
   id: string;
   letter: string;
-  title: string;
+  title: string | null;
   status: DateStatus | null;
   location: string | null;
   note: string | null;
-};
-
-export type AlphabetDateRow = AlphabetDate & {
-  description?: string | null;
-  scheduled_at?: string | null;
-  completed_at?: string | null;
-  created_at?: string | null;
-};
-
-export type Photo = {
-  id: string;
-  date_id: string;
-  filename: string;
-  variant_urls: {
-    thumb: string;
-    medium: string;
-    original: string;
-  };
-  caption?: string | null;
-  created_at?: string;
+  scheduled_at: string | null;
+  completed_at: string | null;
+  created_at: string | null;
 };
 
 export type PhotoRow = {
   id: string;
   date_id: string;
   filename: string;
-  thumb_path: string;
   medium_path: string;
-  original_path: string;
   image_url: string;
-  caption?: string | null;
-  created_at?: string | null;
+  caption: string | null;
+  created_at: string | null;
 };
 
 export type InviteRow = {
