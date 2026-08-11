@@ -64,13 +64,6 @@ export default function Page({
             </p>
 
             <LoginForm nextPath={nextPath} />
-
-            <p className="mt-8 text-center font-hand text-lg text-navy/70">
-              new here?{" "}
-              <span className="ink-underline cursor-pointer text-burgundy">
-                start a fresh book
-              </span>
-            </p>
           </div>
         </div>
       </div>

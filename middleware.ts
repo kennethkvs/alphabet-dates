@@ -8,29 +8,23 @@ type CookieToSet = {
 };
 
 const PUBLIC_PATHS = ["/", "/login"];
-const PUBLIC_PREFIXES = ["/invite/accept"];
 
 function isPublicPath(pathname: string) {
-  return (
-    PUBLIC_PATHS.includes(pathname) ||
-    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  );
+  return PUBLIC_PATHS.includes(pathname);
 }
 
 function isProtectedPage(pathname: string) {
-  return pathname.startsWith("/dates") || pathname === "/invite";
+  return pathname.startsWith("/dates");
 }
 
-function isProtectedApi(pathname: string, method: string) {
+function isProtectedApi(pathname: string) {
   if (pathname.startsWith("/api/alphabet")) return true;
   if (pathname.startsWith("/api/uploads")) return true;
-  if (pathname === "/api/invites") return method === "POST";
   return false;
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const method = request.method.toUpperCase();
 
   let response = NextResponse.next({
     request: {
@@ -74,7 +68,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (isProtectedApi(pathname, method)) {
+    if (isProtectedApi(pathname)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
@@ -86,7 +80,7 @@ export async function middleware(request: NextRequest) {
   if (
     isPublicPath(pathname) ||
     isProtectedPage(pathname) ||
-    isProtectedApi(pathname, method)
+    isProtectedApi(pathname)
   ) {
     return response;
   }
@@ -97,10 +91,8 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/dates/:path*",
-    "/invite",
     "/login",
     "/api/alphabet/:path*",
     "/api/uploads/:path*",
-    "/api/invites",
   ],
 };

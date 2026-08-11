@@ -20,17 +20,6 @@ export type PhotoRow = {
   created_at: string | null;
 };
 
-export type InviteRow = {
-  id: string;
-  token: string;
-  email: string;
-  invited_by: string | null;
-  auth_user_id: string | null;
-  used: boolean | null;
-  expires_at: string | null;
-  created_at?: string | null;
-};
-
 export type ApiMessage = {
   error?: string;
   ok?: boolean;
