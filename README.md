@@ -82,14 +82,31 @@ The upload route stores images privately — the server returns signed URLs for 
 
 ### Applying the database schema
 
-A SQL migration is included at `supabase/migrations/001_init.sql`. You can apply it in one of two ways:
+SQL migrations are included under `supabase/migrations/`. You can apply them in one of two ways:
 
-- Use the Supabase SQL editor: open your project in the Supabase dashboard, go to SQL Editor, paste the file contents, and run it.
+- Use the Supabase SQL editor: open your project in the Supabase dashboard, go to SQL Editor, paste each migration file's contents in order, and run it.
 - Or use the Supabase CLI (if installed):
 
 ```bash
-# log in with `supabase login` then
-supabase db query < supabase/migrations/001_init.sql
+# log in with `supabase login`, then link the project, then:
+supabase db push --linked
 ```
 
 After running the migration, create a Storage bucket named `alphabet-dates` in the Supabase dashboard (Storage → Buckets). The upload endpoint expects that bucket name.
+
+### Seeding the database
+
+`supabase/seed.sql` populates `alphabet_dates` with one blank chapter for each letter A–Z (idempotent — safe to re-run). It runs automatically as part of:
+
+```bash
+supabase db reset
+```
+
+Or apply it on its own against an already-migrated project:
+
+```bash
+supabase db query -f supabase/seed.sql --linked   # remote project
+supabase db query -f supabase/seed.sql --local    # local dev stack
+```
+
+You can also paste its contents into the Supabase SQL editor.

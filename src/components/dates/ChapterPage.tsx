@@ -306,7 +306,7 @@ function ChapterPage({
         <nav className="mt-10 flex items-center justify-between font-hand text-lg">
           {prev ? (
             <Link
-              href={`/chapter/${prev}`}
+              href={`/dates/${prev.toUpperCase()}`}
               className="text-navy hover:text-burgundy"
             >
               ← {prev.toUpperCase()}
@@ -322,7 +322,7 @@ function ChapterPage({
           </Link>
           {next ? (
             <Link
-              href={`/chapter/${next}`}
+              href={`/dates/${next.toUpperCase()}`}
               className="text-navy hover:text-burgundy"
             >
               {next.toUpperCase()} →
