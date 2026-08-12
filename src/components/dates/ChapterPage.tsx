@@ -10,10 +10,11 @@ import {
   DateStatus,
   PhotoRow,
 } from "@/types/alphabet";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Polaroid from "./Polaroid";
 import AddPhotoDialog from "./AddPhotoDialog";
 import { DatePickerInput } from "../ui/datepicker";
+import { saveChapterAction, SaveChapterInput } from "@/app/dates/[letter]/actions";
 
 const MAX_PHOTOS = 5;
 
@@ -51,6 +52,14 @@ function StampLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+type ChapterState = AlphabetDateRow & { photos: PhotoRow[] };
+
+// Empty-string -> null, matching how the DB stores "no value".
+function norm(v: string | null | undefined): string | null {
+  const t = v?.trim();
+  return t ? t : null;
+}
+
 function ChapterPage({
   chapterData,
   photos,
@@ -58,33 +67,122 @@ function ChapterPage({
   chapterData: AlphabetDateRow;
   photos: PhotoRow[];
 }) {
-  const [chapter, setChapter] = useState<
-    AlphabetDateRow & { photos: PhotoRow[] }
-  >({ ...chapterData, photos });
+  const [chapter, setChapter] = useState<ChapterState>({
+    ...chapterData,
+    photos,
+  });
+  // Last-known-persisted snapshot. Drives the change diff and cancel/revert.
+  const [baseline, setBaseline] = useState<ChapterState>({
+    ...chapterData,
+    photos,
+  });
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const idx = chapter.letter.charCodeAt(0) - 65;
   const prev = idx > 0 ? String.fromCharCode(64 + idx).toLowerCase() : null;
   const next = idx < 25 ? String.fromCharCode(66 + idx).toLowerCase() : null;
 
-  const isEmpty = chapter.title === null;
+  const isEmpty = !chapter.title?.trim();
 
-  const addPhoto = (p: PhotoRow) => {
+  const visiblePhotos = chapter.photos.filter(
+    (p) => !removedIds.includes(p.id),
+  );
+
+  const addPhotos = (added: PhotoRow[]) => {
+    // Already persisted by /api/uploads, so they land in BOTH chapter and
+    // baseline — otherwise the diff would treat their captions as "changed".
     setChapter((c) => ({
       ...c,
-      photos: [...c.photos, p].slice(0, MAX_PHOTOS),
+      photos: [...c.photos, ...added].slice(0, MAX_PHOTOS),
+    }));
+    setBaseline((b) => ({
+      ...b,
+      photos: [...b.photos, ...added].slice(0, MAX_PHOTOS),
     }));
   };
-  const removePhoto = (i: number) => {
-    setChapter((c) => ({ ...c, photos: c.photos.filter((_, j) => j !== i) }));
+  const requestRemovePhoto = (id: string) => {
+    if (
+      !window.confirm(
+        "Remove this photo? It'll be deleted for good when you save.",
+      )
+    )
+      return;
+    setRemovedIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
   };
-  const updatePhotoCaption = (i: number, caption: string) => {
+  const updatePhotoCaption = (id: string, caption: string) => {
     setChapter((c) => ({
       ...c,
-      photos: c.photos.map((p, j) => (j === i ? { ...p, caption } : p)),
+      photos: c.photos.map((p) => (p.id === id ? { ...p, caption } : p)),
     }));
   };
+
+  function buildPayload(): SaveChapterInput {
+    const baseCaptions = new Map(
+      baseline.photos.map((p) => [p.id, norm(p.caption)]),
+    );
+    return {
+      dateId: chapter.id,
+      title: norm(chapter.title),
+      status: chapter.status,
+      scheduledAt: chapter.scheduled_at,
+      location: norm(chapter.location),
+      note: norm(chapter.note),
+      captions: visiblePhotos
+        .filter((p) => baseCaptions.get(p.id) !== norm(p.caption))
+        .map((p) => ({ id: p.id, caption: norm(p.caption) })),
+      removedPhotoIds: removedIds,
+    };
+  }
+
+  function hasChanges(p: SaveChapterInput) {
+    return (
+      p.title !== norm(baseline.title) ||
+      p.status !== baseline.status ||
+      p.scheduledAt !== baseline.scheduled_at ||
+      p.location !== norm(baseline.location) ||
+      p.note !== norm(baseline.note) ||
+      p.captions.length > 0 ||
+      p.removedPhotoIds.length > 0
+    );
+  }
+
+  function handleDoneEditing() {
+    const payload = buildPayload();
+    setSaveError(null);
+
+    if (!hasChanges(payload)) {
+      setIsEditing(false);
+      setRemovedIds([]);
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await saveChapterAction(payload);
+      if (!res.ok) {
+        setSaveError(res.error); // stay in edit mode, keep the user's work
+        return;
+      }
+      const kept = chapter.photos.filter(
+        (p) => !res.deletedPhotoIds.includes(p.id),
+      );
+      const nextState: ChapterState = { ...chapter, ...res.date, photos: kept };
+      setChapter(nextState);
+      setBaseline(nextState);
+      setRemovedIds([]);
+      setIsEditing(false);
+    });
+  }
+
+  function handleCancelEditing() {
+    setChapter(baseline);
+    setRemovedIds([]);
+    setSaveError(null);
+    setIsEditing(false);
+  }
 
   return (
     <div className="min-h-screen bg-cream">
@@ -150,12 +248,16 @@ function ChapterPage({
                 <div>
                   <DatePickerInput
                     label="date"
-                    formValue={new Date(chapter.scheduled_at || new Date())}
+                    formValue={
+                      chapter.scheduled_at
+                        ? new Date(chapter.scheduled_at)
+                        : null
+                    }
                     placeholder="e.g. Feb 14, 2027"
                     handleDateChange={(date) =>
                       setChapter((c) => ({
                         ...c,
-                        scheduled_at: date.toISOString(),
+                        scheduled_at: date ? date.toISOString() : null,
                       }))
                     }
                   />
@@ -210,21 +312,40 @@ function ChapterPage({
           <Button
             variant="outline"
             onClick={() => setPhotoModalOpen(true)}
-            disabled={chapter.photos.length >= MAX_PHOTOS}
+            disabled={visiblePhotos.length >= MAX_PHOTOS || isPending}
             className="rounded-sm border-navy/25 bg-cream-deep font-hand text-lg text-navy hover:bg-cream"
           >
             + add photo{" "}
             <span className="ml-1 text-sm text-muted-foreground">
-              ({chapter.photos.length}/{MAX_PHOTOS})
+              ({visiblePhotos.length}/{MAX_PHOTOS})
             </span>
           </Button>
+          {isEditing && (
+            <Button
+              variant="outline"
+              onClick={handleCancelEditing}
+              disabled={isPending}
+              className="rounded-sm border-navy/25 bg-cream-deep font-hand text-lg text-navy hover:bg-cream"
+            >
+              cancel
+            </Button>
+          )}
           <Button
-            onClick={() => setIsEditing((v) => !v)}
+            onClick={() => (isEditing ? handleDoneEditing() : setIsEditing(true))}
+            disabled={isPending}
             className="rounded-sm bg-navy font-hand text-lg text-cream hover:bg-navy-deep"
           >
-            {isEditing ? "done editing" : "edit details"}
+            {isEditing ? (isPending ? "saving…" : "done editing") : "edit details"}
           </Button>
         </div>
+        {saveError && (
+          <p
+            className="mt-2 text-right font-hand text-lg text-burgundy"
+            role="alert"
+          >
+            {saveError}
+          </p>
+        )}
 
         {/* Journal section — first */}
         <section className="paper deckle mt-6 rounded-sm p-8 md:p-12">
@@ -271,11 +392,11 @@ function ChapterPage({
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-3xl text-navy">the photographs</h2>
             <span className="font-hand text-lg text-burgundy">
-              {chapter.photos.length}/{MAX_PHOTOS} taped in
+              {visiblePhotos.length}/{MAX_PHOTOS} taped in
             </span>
           </div>
 
-          {chapter.photos.length === 0 ? (
+          {visiblePhotos.length === 0 ? (
             <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
               <p className="font-hand text-2xl text-muted-foreground">
                 no photos taped in yet
@@ -289,13 +410,13 @@ function ChapterPage({
             </div>
           ) : (
             <div className="mt-8 flex flex-wrap items-start justify-center gap-x-6 gap-y-10">
-              {chapter.photos.map((p, i) => (
+              {visiblePhotos.map((p) => (
                 <Polaroid
-                  key={i}
+                  key={p.id}
                   image={p}
                   editing={isEditing}
-                  onCaption={(c) => updatePhotoCaption(i, c)}
-                  onRemove={() => removePhoto(i)}
+                  onCaption={(c) => updatePhotoCaption(p.id, c)}
+                  onRemove={() => requestRemovePhoto(p.id)}
                 />
               ))}
             </div>
@@ -337,7 +458,8 @@ function ChapterPage({
         dateId={chapter.id}
         open={photoModalOpen}
         onOpenChange={setPhotoModalOpen}
-        remaining={MAX_PHOTOS - chapter.photos.length}
+        remaining={MAX_PHOTOS - visiblePhotos.length}
+        onAdded={addPhotos}
       />
     </div>
   );

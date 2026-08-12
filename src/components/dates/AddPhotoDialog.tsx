@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -13,26 +12,30 @@ import {
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useState } from "react";
+import type { PhotoRow } from "@/types/alphabet";
 
 function AddPhotoDialog({
   dateId,
   open,
   onOpenChange,
   remaining,
+  onAdded,
 }: {
   dateId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   remaining: number;
+  onAdded: (photos: PhotoRow[]) => void;
 }) {
   const [caption, setCaption] = useState("");
   const [file, setFile] = useState<FileList | null>(null);
-
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setCaption("");
     setFile(null);
+    setError(null);
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -44,21 +47,39 @@ function AddPhotoDialog({
     form.append("caption", caption || "");
 
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/uploads", { method: "POST", body: form });
+      const body = await res.json().catch(() => null);
 
-      if (res.ok) {
-        reset();
-        onOpenChange(false);
-        // window.location.reload();
+      if (!res.ok) {
+        setError(
+          typeof body?.error === "string"
+            ? body.error
+            : "Upload failed. Try again.",
+        );
+        return; // keep the dialog open and the file selected so the failure is visible
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+
+      // /api/uploads returns { results: [{ photo, urls: { medium } }] }.
+      // photo.image_url is null in the DB — the signed URL lives in
+      // urls.medium and must be merged in, since Polaroid renders
+      // image_url directly.
+      const added: PhotoRow[] = (body?.results ?? []).map(
+        (r: { photo: PhotoRow; urls: { medium: string } }) => ({
+          ...r.photo,
+          image_url: r.urls.medium,
+        }),
+      );
+
+      onAdded(added);
       reset();
       onOpenChange(false);
-      // window.location.reload();
+    } catch (err) {
+      console.error(err);
+      setError("Upload failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -104,6 +125,12 @@ function AddPhotoDialog({
               className="mt-1 border-navy/25 bg-cream-deep/60 text-navy placeholder:text-navy/50"
             />
           </div>
+
+          {error && (
+            <p className="font-hand text-lg text-burgundy" role="alert">
+              {error}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
@@ -116,10 +143,10 @@ function AddPhotoDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!(file || remaining <= 0 || loading)}
+            disabled={loading || remaining <= 0 || !file || file.length === 0}
             className="rounded-sm bg-burgundy text-cream hover:bg-burgundy-deep"
           >
-            Tape it in
+            {loading ? "taping in…" : "Tape it in"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,12 @@
 import { PhotoRow } from "@/types/alphabet";
 import Image from "next/image";
 
+function rotationFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return (Math.abs(h) % 900) / 100 - 4.5; // stable, -4.5deg..+4.5deg
+}
+
 function Polaroid({
   image,
   editing,
@@ -12,7 +18,9 @@ function Polaroid({
   onCaption: (c: string) => void;
   onRemove: () => void;
 }) {
-  const rotation = Math.random() * 10 - 3; // random rotation between -5 and 5 degrees
+  // Deterministic per-photo rotation (stable across re-renders and reloads,
+  // and hydration-safe, unlike Math.random() at render time).
+  const rotation = rotationFor(image.id);
 
   return (
     <figure

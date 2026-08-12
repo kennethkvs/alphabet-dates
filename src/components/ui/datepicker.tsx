@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, XIcon } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -40,14 +40,18 @@ export function DatePickerInput({
   handleDateChange,
 }: {
   label?: string;
-  formValue: Date;
+  formValue: Date | null;
   placeholder: string;
-  handleDateChange: (date: Date) => void;
+  handleDateChange: (date: Date | undefined) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [date, setDate] = React.useState<Date | undefined>(formValue);
-  const [month, setMonth] = React.useState<Date | undefined>(formValue);
-  const [value, setValue] = React.useState(formatDate(formValue));
+  const [date, setDate] = React.useState<Date | undefined>(
+    formValue ?? undefined,
+  );
+  const [month, setMonth] = React.useState<Date | undefined>(
+    formValue ?? new Date(),
+  );
+  const [value, setValue] = React.useState(formatDate(formValue ?? undefined));
 
   return (
     <Field className="mx-auto w-full gap-0">
@@ -66,8 +70,13 @@ export function DatePickerInput({
               value={value}
               placeholder={placeholder}
               onChange={(e) => {
-                const date = new Date(e.target.value);
                 setValue(e.target.value);
+                if (e.target.value.trim() === "") {
+                  setDate(undefined);
+                  handleDateChange(undefined);
+                  return;
+                }
+                const date = new Date(e.target.value);
                 if (isValidDate(date)) {
                   setDate(date);
                   setMonth(date);
@@ -81,6 +90,22 @@ export function DatePickerInput({
               }}
             />
             <InputGroupAddon align="inline-end">
+              {date && (
+                <InputGroupButton
+                  id="date-clear"
+                  variant="link"
+                  size="icon-xs"
+                  aria-label="Clear date"
+                  onClick={() => {
+                    setDate(undefined);
+                    setValue("");
+                    handleDateChange(undefined);
+                  }}
+                >
+                  <XIcon />
+                  <span className="sr-only">Clear date</span>
+                </InputGroupButton>
+              )}
               <InputGroupButton
                 id="date-picker"
                 variant="link"
@@ -108,7 +133,7 @@ export function DatePickerInput({
               setDate(date);
               setValue(formatDate(date));
               setOpen(false);
-              handleDateChange(date as Date);
+              handleDateChange(date);
             }}
           />
         </PopoverContent>
