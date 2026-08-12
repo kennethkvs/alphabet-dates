@@ -36,7 +36,7 @@ export default async function DatePage({
       <div className="flex min-h-screen items-center justify-center bg-cream px-4">
         <div className="text-center">
           <h1 className="font-display text-4xl text-navy">
-            That letter isn't in our alphabet
+            That letter isn&apos;t in our alphabet
           </h1>
           <p className="mt-2 font-hand text-2xl text-burgundy">
             try A through Z

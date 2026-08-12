@@ -1,12 +1,13 @@
 import LoginForm from "@/components/auth/LoginForm";
 import Link from "next/link";
+import { safeNextPath } from "@/lib/access";
 
-export default function Page({
+export default async function Page({
   searchParams,
 }: {
-  searchParams?: { next?: string };
+  searchParams: Promise<{ next?: string | string[] }>;
 }) {
-  const nextPath = searchParams?.next || "/dates";
+  const nextPath = safeNextPath((await searchParams).next);
 
   return (
     <div className="min-h-screen bg-cream">
@@ -37,8 +38,8 @@ export default function Page({
           </div>
           <div className="relative">
             <p className="max-w-sm font-body italic leading-relaxed text-cream/75">
-              "This book belongs to us. Every chapter, every taped-in photo,
-              every scribble in the margin — ours."
+              &ldquo;This book belongs to us. Every chapter, every taped-in
+              photo, every scribble in the margin — ours.&rdquo;
             </p>
             <p className="mt-4 font-hand text-xl text-gold">
               — the inscription

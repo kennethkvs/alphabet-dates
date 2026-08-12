@@ -110,3 +110,44 @@ supabase db query -f supabase/seed.sql --local    # local dev stack
 ```
 
 You can also paste its contents into the Supabase SQL editor.
+
+### Users & access
+
+This app is built for exactly two people, authenticated against Supabase
+`auth.users` (there is no self-serve signup). Environment variables, split by
+where they're needed:
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | deployed | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | deployed | public/publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | deployed | server-only writes |
+| `ALLOWED_USER_EMAILS` | deployed | comma-separated, the only two emails allowed to sign in |
+| `SEED_USER_1_EMAIL` / `SEED_USER_1_PASSWORD` | **local only** | used by `npm run seed` to create account 1 |
+| `SEED_USER_2_EMAIL` / `SEED_USER_2_PASSWORD` | **local only** | used by `npm run seed` to create account 2 |
+
+Do **not** set `SEED_USER_*_PASSWORD` in your hosting provider's environment
+— they're plaintext passwords the deployed app never reads.
+
+To create the two accounts (and, incidentally, seed any missing A–Z
+chapters), fill in `.env.local` from `.env.local.example` and run:
+
+```bash
+npm run seed
+```
+
+Safe to re-run — it skips accounts that already exist and leaves their
+passwords alone. To reset a password to match `.env.local`:
+
+```bash
+npm run seed -- --update-passwords
+```
+
+**One manual dashboard step this can't do from code**: in your Supabase
+project, go to Authentication → Sign In / Providers → Email, and turn
+**"Allow new users to sign up" OFF**. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is
+public by design, so with signup left on, anyone can create their own
+`auth.users` row directly. The `ALLOWED_USER_EMAILS` allowlist keeps
+strangers out of the app itself, but this toggle is what keeps them out of
+the table. Leave "Confirm email" ON — the seed script pre-confirms both
+accounts regardless.

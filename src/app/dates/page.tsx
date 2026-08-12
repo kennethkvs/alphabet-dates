@@ -4,6 +4,7 @@ import supabase from "@/lib/supabase";
 import ChapterList from "@/components/dates/ChapterList";
 import type { AlphabetDateRow, Filter } from "@/types/alphabet";
 import Link from "next/link";
+import SignOutButton from "@/components/auth/SignOutButton";
 
 export default function Page() {
   const [alphabetDates, setAlphabetDates] = useState<AlphabetDateRow[] | null>(
@@ -48,12 +49,15 @@ export default function Page() {
         {/* Header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <Link
-              href="/"
-              className="font-hand text-lg text-burgundy hover:text-burgundy-deep"
-            >
-              ← the cover
-            </Link>
+            <div className="flex items-center justify-between gap-4">
+              <Link
+                href="/"
+                className="font-hand text-lg text-burgundy hover:text-burgundy-deep"
+              >
+                ← the cover
+              </Link>
+              <SignOutButton />
+            </div>
             <h1 className="mt-3 font-display text-5xl italic text-navy md:text-6xl">
               Table of Contents
             </h1>

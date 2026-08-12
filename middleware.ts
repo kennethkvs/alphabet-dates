@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { isAllowedEmail, safeNextPath } from "@/lib/access";
 
 type CookieToSet = {
   name: string;
@@ -7,7 +8,7 @@ type CookieToSet = {
   options?: Parameters<NextResponse["cookies"]["set"]>[2];
 };
 
-const PUBLIC_PATHS = ["/", "/login"];
+const PUBLIC_PATHS = ["/", "/login", "/not-invited"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.includes(pathname);
@@ -23,8 +24,27 @@ function isProtectedApi(pathname: string) {
   return false;
 }
 
+// NextResponse.redirect() starts from a blank response, so any cookies the
+// Supabase client just wrote via setAll() (a rotated refresh token, for
+// instance) would otherwise be silently dropped, producing intermittent
+// sign-outs.
+function redirectPreservingCookies(url: URL, carrying: NextResponse) {
+  const redirect = NextResponse.redirect(url);
+  for (const cookie of carrying.cookies.getAll()) {
+    redirect.cookies.set(cookie);
+  }
+  return redirect;
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // The dead end for signed-in-but-not-allowed users must never redirect
+  // anywhere. It is also outside config.matcher below; this early return
+  // keeps that invariant true even if a future matcher edit changes that.
+  if (pathname === "/not-invited") {
+    return NextResponse.next({ request: { headers: request.headers } });
+  }
 
   let response = NextResponse.next({
     request: {
@@ -65,16 +85,40 @@ export async function middleware(request: NextRequest) {
     if (isProtectedPage(pathname)) {
       const url = new URL("/login", request.url);
       url.searchParams.set("next", pathname);
-      return NextResponse.redirect(url);
+      return redirectPreservingCookies(url, response);
     }
 
     if (isProtectedApi(pathname)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    return response;
   }
 
-  if (user && pathname === "/login") {
-    return NextResponse.redirect(new URL("/dates", request.url));
+  // Signed in, but not one of the two allowed accounts. This branch must
+  // come before the "authenticated -> bounce off /login" rule below, and it
+  // must never redirect a disallowed user to /login itself, or the two
+  // rules loop forever (disallowed -> /login -> authenticated -> /dates ->
+  // ... ). Letting them fall through to render /login is what breaks the
+  // loop, and it's also how they can sign in as the other account.
+  if (!isAllowedEmail(user.email)) {
+    if (isProtectedApi(pathname)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (isProtectedPage(pathname)) {
+      return redirectPreservingCookies(
+        new URL("/not-invited", request.url),
+        response,
+      );
+    }
+    return response; // includes pathname === "/login": render the form
+  }
+
+  if (pathname === "/login") {
+    const next = safeNextPath(
+      request.nextUrl.searchParams.get("next") ?? undefined,
+    );
+    return redirectPreservingCookies(new URL(next, request.url), response);
   }
 
   if (

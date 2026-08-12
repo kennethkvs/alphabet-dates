@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { isAllowedEmail } from "@/lib/access";
 import type { AlphabetDateRow, DateStatus } from "@/types/alphabet";
 
 const BUCKET = "alphabet-dates";
@@ -45,6 +46,13 @@ export async function saveChapterAction(
   } = await session.auth.getUser();
   if (authError || !user) {
     return { ok: false, error: "You're not signed in." };
+  }
+  // Proxy already blocks non-allowlisted users on /dates/*, but Server
+  // Functions are POSTs to whatever route they were imported into — a
+  // matcher edit or a file move can silently drop that coverage. This write
+  // uses the service-role key and bypasses RLS entirely, so re-check here.
+  if (!isAllowedEmail(user.email)) {
+    return { ok: false, error: "This account can't edit this book." };
   }
 
   // 2. Validate everything — nothing from the client is trusted.

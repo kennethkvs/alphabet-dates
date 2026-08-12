@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { isAllowedEmail } from "@/lib/access";
 import sharp from "sharp";
 import type { PhotoRow } from "@/types/alphabet";
 
@@ -11,6 +13,17 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(request: Request) {
   try {
+    // Proxy's matcher covers this route, but that's not a substitute for an
+    // in-handler check (a matcher edit can silently drop coverage) — and
+    // this handler writes with the service-role key, bypassing RLS.
+    const session = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await session.auth.getUser();
+    if (!user || !isAllowedEmail(user.email)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const form = await request.formData();
     const dateId = form.get("dateId") as string | null;
     if (!dateId)

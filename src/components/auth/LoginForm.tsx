@@ -25,6 +25,10 @@ export default function LoginForm({ nextPath = "/dates" }: Props) {
         setError(res.error.message);
       } else {
         router.push(nextPath);
+        // The session cookie was just written client-side by
+        // createBrowserClient — without this, a prefetched/cached RSC
+        // payload for the destination can be served from before it existed.
+        router.refresh();
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -68,7 +72,8 @@ export default function LoginForm({ nextPath = "/dates" }: Props) {
 
       <button
         type="submit"
-        className="mt-2 w-full rounded-sm bg-burgundy px-6 py-3 font-display text-base tracking-wide text-cream shadow-md transition-colors hover:bg-burgundy-deep"
+        disabled={loading}
+        className="mt-2 w-full rounded-sm bg-burgundy px-6 py-3 font-display text-base tracking-wide text-cream shadow-md transition-colors hover:bg-burgundy-deep disabled:opacity-50"
       >
         {loading ? "Opening..." : "Open the scrapbook →"}
       </button>
