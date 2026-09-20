@@ -1,153 +1,207 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alphabet Dates
 
-## Getting Started
+A private scrapbook for two people: 26 chapters, one per letter of the
+alphabet, each a date you plan, go on, and fill with photos. Built with
+Next.js (App Router) and Supabase (auth, Postgres, storage). There is no
+signup — exactly two accounts exist, and you create them yourself.
 
-First, run the development server:
+## What you need before you start
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Node.js 20 or newer** (`node -v` to check) and npm.
+- A free [Supabase](https://supabase.com) account. The app talks to a hosted
+  Supabase project only — there is no local database to run.
+- Optionally the [Supabase CLI](https://supabase.com/docs/guides/cli) for
+  applying the database schema from the terminal. You can do the same job
+  by pasting SQL into the dashboard instead.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Alphabet Dates (Supabase) Setup
-
-This project includes a scaffold for an "Alphabet Dates" feature using Supabase for auth, Postgres, and storage. To get started:
-
-1. Create a Supabase project at https://app.supabase.com and create a Storage bucket named `alphabet-dates`.
-2. Copy your Supabase project URL and anon/service keys into `.env.local` (see `.env.local.example`).
-3. Run `npm install` to install new dependencies (`@supabase/supabase-js`, `sharp`).
-4. Start the dev server:
+### 1. Install dependencies
 
 ```bash
-npm run dev
+git clone <this repo>
+cd alphabet-dates
+npm install
 ```
 
-API endpoints added (server-side):
+### 2. Create a Supabase project
 
-- `POST /api/uploads` — proxy upload endpoint that resizes images (150px thumbnail, 800px medium) and stores private variants in Supabase Storage.
-- `GET/POST /api/alphabet` — simple list/create endpoints for alphabet dates.
+1. Go to <https://supabase.com/dashboard> and create a new project.
+2. Once it's ready, open **Project Settings → API keys** and note:
+   - the **Project URL**
+   - the **publishable** key (`sb_publishable_...`)
+   - the **secret** key (`sb_secret_...`) — treat this like a password.
 
-You'll need to create the `alphabet_dates` and `photos` tables in your Supabase project. A minimal schema:
+### 3. Create the storage bucket
 
-```sql
-create table alphabet_dates (
-	id uuid primary key default uuid_generate_v4(),
-	letter text,
-	title text,
-	description text,
-	scheduled_at timestamptz,
-	completed_at timestamptz,
-	created_at timestamptz default now()
-);
+Photos live in a private storage bucket, and the app serves them with
+short-lived signed URLs. Nothing creates this bucket for you:
 
-create table photos (
-	id uuid primary key default uuid_generate_v4(),
-	date_id uuid references alphabet_dates(id) on delete cascade,
-	filename text,
-	thumb_path text,
-	medium_path text,
-	original_path text,
-	caption text,
-	created_at timestamptz default now()
-);
-```
+1. In the dashboard go to **Storage → Buckets → New bucket**.
+2. Name it exactly `alphabet-dates`.
+3. Leave **Public bucket** off.
 
-The upload route stores images privately — the server returns signed URLs for temporary access. Adjust expiration or bucket policies as needed.
+### 4. Turn off self-serve signup
 
-### Applying the database schema
+The publishable key is, by design, visible to anyone who loads the site.
+With signup left on, a stranger could create their own account in your
+project. The app's email allowlist keeps them out of the scrapbook, but this
+toggle keeps them out of the auth table entirely:
 
-SQL migrations are included under `supabase/migrations/`. You can apply them in one of two ways:
+1. Go to **Authentication → Sign In / Providers → Email**.
+2. Turn **"Allow new users to sign up" OFF**.
+3. Leave **"Confirm email" ON** — the seed script pre-confirms your two
+   accounts, so this never gets in your way.
 
-- Use the Supabase SQL editor: open your project in the Supabase dashboard, go to SQL Editor, paste each migration file's contents in order, and run it.
-- Or use the Supabase CLI (if installed):
+### 5. Apply the database schema
+
+Migrations live in [`supabase/migrations/`](supabase/migrations/). Apply
+them in filename order, either way below.
+
+**With the Supabase CLI:**
 
 ```bash
-# log in with `supabase login`, then link the project, then:
+supabase login
+supabase link --project-ref <your-project-ref>   # from the dashboard URL
 supabase db push --linked
 ```
 
-After running the migration, create a Storage bucket named `alphabet-dates` in the Supabase dashboard (Storage → Buckets). The upload endpoint expects that bucket name.
+**Or with the dashboard:** open **SQL Editor**, and for each file in
+`supabase/migrations/` (oldest first) paste its contents and run it.
 
-### Seeding the database
-
-`supabase/seed.sql` populates `alphabet_dates` with one blank chapter for each letter A–Z (idempotent — safe to re-run). It runs automatically as part of:
-
-```bash
-supabase db reset
-```
-
-Or apply it on its own against an already-migrated project:
+### 6. Fill in `.env.local`
 
 ```bash
-supabase db query -f supabase/seed.sql --linked   # remote project
-supabase db query -f supabase/seed.sql --local    # local dev stack
+cp .env.local.example .env.local
 ```
 
-You can also paste its contents into the Supabase SQL editor.
+Then open `.env.local` and fill in every value:
 
-### Users & access
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL from step 2 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable key from step 2 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Secret key from step 2 |
+| `ALLOWED_USER_EMAILS` | Both of your email addresses, comma-separated |
+| `NEXT_PUBLIC_USER_1_NAME` / `NEXT_PUBLIC_USER_2_NAME` | Your first names — the cover shows the initials |
+| `SEED_USER_1_EMAIL` / `SEED_USER_1_PASSWORD` | Login for person 1 (used by the next step) |
+| `SEED_USER_2_EMAIL` / `SEED_USER_2_PASSWORD` | Login for person 2 (used by the next step) |
 
-This app is built for exactly two people, authenticated against Supabase
-`auth.users` (there is no self-serve signup). Environment variables, split by
-where they're needed:
+Notes:
 
-| Variable | Where | Purpose |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | deployed | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | deployed | public/publishable key |
-| `SUPABASE_SERVICE_ROLE_KEY` | deployed | server-only writes |
-| `ALLOWED_USER_EMAILS` | deployed | comma-separated, the only two emails allowed to sign in |
-| `SEED_USER_1_EMAIL` / `SEED_USER_1_PASSWORD` | **local only** | used by `npm run seed` to create account 1 |
-| `SEED_USER_2_EMAIL` / `SEED_USER_2_PASSWORD` | **local only** | used by `npm run seed` to create account 2 |
+- `ALLOWED_USER_EMAILS` must list the same two addresses you use for
+  `SEED_USER_*_EMAIL`. If it doesn't, everyone is denied.
+- Passwords must be at least 6 characters. Wrap a password in double
+  quotes if it contains `#` or spaces.
+- `.env.local` is git-ignored. Never commit it.
 
-Do **not** set `SEED_USER_*_PASSWORD` in your hosting provider's environment
-— they're plaintext passwords the deployed app never reads.
-
-To create the two accounts (and, incidentally, seed any missing A–Z
-chapters), fill in `.env.local` from `.env.local.example` and run:
+### 7. Create the two accounts and the 26 chapters
 
 ```bash
 npm run seed
 ```
 
-Safe to re-run — it skips accounts that already exist and leaves their
-passwords alone. To reset a password to match `.env.local`:
+This creates both users in Supabase auth (pre-confirmed, so they can log in
+immediately) and inserts one blank chapter for each letter A–Z. It's safe to
+run again: existing users and chapters are left alone.
+
+If you ever need to reset a password to whatever's in `.env.local`:
 
 ```bash
 npm run seed -- --update-passwords
 ```
 
-**One manual dashboard step this can't do from code**: in your Supabase
-project, go to Authentication → Sign In / Providers → Email, and turn
-**"Allow new users to sign up" OFF**. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is
-public by design, so with signup left on, anyone can create their own
-`auth.users` row directly. The `ALLOWED_USER_EMAILS` allowlist keeps
-strangers out of the app itself, but this toggle is what keeps them out of
-the table. Leave "Confirm email" ON — the seed script pre-confirms both
-accounts regardless.
+### 8. Run it
+
+```bash
+npm run dev
+```
+
+Open <http://localhost:3000>, click **Open the book**, and sign in with one
+of the two accounts.
+
+## Everyday commands
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server with hot reload |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint |
+| `npm run seed` | Create missing accounts and chapters (see step 7) |
+
+## Environment variables, by where they belong
+
+| Variable | Local `.env.local` | Hosting provider | Why |
+|---|:-:|:-:|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✓ | ✓ | Which Supabase project to talk to |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✓ | ✓ | Public key for auth and reads |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✓ | ✓ | Server-only writes and uploads. Never reaches the browser |
+| `ALLOWED_USER_EMAILS` | ✓ | ✓ | The only two people allowed in. Checked on every request |
+| `NEXT_PUBLIC_USER_1_NAME` / `_2_NAME` | ✓ | ✓ | Initials on the cover. Inlined at **build time** — change them, then rebuild |
+| `SEED_USER_*_EMAIL` / `_PASSWORD` | ✓ | **✗** | Plaintext passwords read only by `npm run seed`. The deployed app never uses them |
+
+## Deploying
+
+Any host that runs Next.js works (Vercel is the least setup). Set every
+variable from the table above **except** the `SEED_USER_*` ones in the
+provider's environment settings, then deploy. Because the `NEXT_PUBLIC_*`
+names are baked in during `next build`, they need to be present at build
+time, not just at runtime.
+
+The database and storage bucket are already set up from the steps above —
+the deployed app uses the same Supabase project as local development.
+
+## How it's put together
+
+```
+src/
+  app/
+    page.tsx              the book cover (initials come from src/lib/names.ts)
+    login/                sign-in
+    not-invited/          shown to signed-in users who aren't on the allowlist
+    dates/                the 26 chapters; [letter]/ is a single chapter
+    api/uploads/          resizes photos with sharp and stores them privately
+  components/             UI, grouped by feature (auth, dates, alphabet, ui)
+  lib/
+    access.ts             ALLOWED_USER_EMAILS check (server only)
+    names.ts              NEXT_PUBLIC_USER_*_NAME → initials for the cover
+    supabase-*.ts         Supabase clients for browser, server, and admin use
+  proxy.ts                runs on every request: redirects anyone not signed in
+supabase/
+  migrations/             database schema, applied in order
+  schemas/                declarative copy of the current tables, for reference
+  seed.sql                SQL version of the A–Z chapter seed
+scripts/seed.mjs          `npm run seed`
+```
+
+Two tables: `alphabet_dates` (one row per letter, with title, status,
+location, note, and dates) and `photos` (belongs to a chapter; stores the
+storage path of an 800px-wide resized copy plus a caption).
+
+## Troubleshooting
+
+**"Not invited" page after logging in** — the email you signed in with isn't
+in `ALLOWED_USER_EMAILS`, or that variable isn't set at all (unset means
+everyone is denied). Fix the variable and restart `npm run dev`.
+
+**Sign-in says the email isn't confirmed** — the account was created some
+other way than `npm run seed`. Run `npm run seed -- --update-passwords`,
+which also marks both accounts confirmed.
+
+**`npm run seed` fails with HTTP 403** — `SUPABASE_SERVICE_ROLE_KEY` is
+probably the publishable key. It must be the `sb_secret_...` one.
+
+**Photo upload fails** — check that the bucket is named exactly
+`alphabet-dates` and that `SUPABASE_SERVICE_ROLE_KEY` is set.
+
+**Cover still shows "A&Z"** — the name variables are read at build time.
+Restart `npm run dev` locally, or trigger a new build on your host.
+
+**`.env.local` seems ignored** — it must sit at the repo root, not inside
+`src/`.
+
+## Learn more
+
+- [Next.js docs](https://nextjs.org/docs)
+- [Supabase docs](https://supabase.com/docs)
