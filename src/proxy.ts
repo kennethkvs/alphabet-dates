@@ -36,7 +36,7 @@ function redirectPreservingCookies(url: URL, carrying: NextResponse) {
   return redirect;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // The dead end for signed-in-but-not-allowed users must never redirect

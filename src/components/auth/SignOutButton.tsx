@@ -12,7 +12,7 @@ export default function SignOutButton({
   async function signOut() {
     setBusy(true);
     await createSupabaseBrowserClient().auth.signOut();
-    // A full document load, not router.push: it guarantees middleware
+    // A full document load, not router.push: it guarantees the proxy
     // re-runs against the now-cookieless request instead of serving a
     // cached RSC tree.
     window.location.assign("/login");

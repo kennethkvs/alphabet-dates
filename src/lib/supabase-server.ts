@@ -36,7 +36,7 @@ export async function createSupabaseServerClient() {
           }
         } catch {
           // Throws when called during a Server Component render (headers
-          // already sent). Harmless here: middleware.ts refreshes the
+          // already sent). Harmless here: src/proxy.ts refreshes the
           // session on every /dates/* request. Writes from a Server Action
           // do succeed.
         }
