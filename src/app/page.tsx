@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { INITIALS, INITIALS_HAND } from "@/lib/names";
 
 export default function Home() {
   const router = useRouter();
@@ -246,7 +247,7 @@ export default function Home() {
                 <div className="mt-6 flex items-center gap-3">
                   <span className="h-px w-10 bg-gold/50" />
                   <span className="font-hand text-2xl text-gold-soft">
-                    a &amp; b
+                    {INITIALS_HAND}
                   </span>
                   <span className="h-px w-10 bg-gold/50" />
                 </div>
@@ -269,7 +270,7 @@ export default function Home() {
                     className="font-display text-3xl italic text-navy-deep sm:text-4xl"
                     style={{ textShadow: "0 1px 0 oklch(0.85 0.12 82)" }}
                   >
-                    A&amp;Z
+                    {INITIALS}
                   </span>
                 </div>
               </div>
@@ -299,7 +300,7 @@ export default function Home() {
             >
               <div className="flex h-full items-center justify-center">
                 <p className="font-hand text-2xl text-burgundy/70">
-                  ex libris — a &amp; z
+                  ex libris — {INITIALS_HAND}
                 </p>
               </div>
             </div>
