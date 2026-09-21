@@ -1,21 +1,200 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import LoginSpread from "@/components/auth/LoginSpread";
+import InsideCover from "@/components/auth/InsideCover";
 import { INITIALS, INITIALS_HAND } from "@/lib/names";
+
+/**
+ * Opening sequence:
+ *
+ *   closed ─click─▶ opening ──▶ settling ──▶ zooming ──▶ /login
+ *            cover rotates     overlay        overlay grows
+ *            (OPEN_MS)         fades in       to the viewport
+ *                              (SETTLE_MS)    (ZOOM_MS)
+ *
+ * The inside of the book shows a scaled-down live copy of the login page.
+ * Once the cover has settled, a fixed overlay with an identical copy fades in
+ * exactly over the open book, then scales up until it fills the viewport. At
+ * that point it *is* the login page at 1:1, so the navigation is a seamless
+ * cut rather than a jump.
+ */
+type Phase = "closed" | "opening" | "settling" | "zooming";
+
+const OPEN_MS = 1500;
+const SETTLE_MS = 250;
+const ZOOM_MS = 1000;
+const ZOOM_EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
+// Share of the overlay's animation spent holding still while it fades in.
+const HOLD_PCT = (100 * SETTLE_MS) / (SETTLE_MS + ZOOM_MS);
+// Frame of navy back cover around the inside page (`inset-[10px]` below)
+const PAGE_INSET = 10;
+
+type Geometry = {
+  /** Viewport, measured without a scrollbar — what /login will lay out in. */
+  vw: number;
+  vh: number;
+  /** Open the book as a two-page spread (matches login's `md:` two columns)? */
+  spread: boolean;
+  /** Width of one page (the closed book). */
+  pageW: number;
+  /** Rect of the open book in viewport coordinates. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Login copy: scale, and its top-left relative to the open book's top-left. */
+  scale: number;
+  ox: number;
+  oy: number;
+};
+
+function measure(book: HTMLElement): Geometry {
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const r = book.getBoundingClientRect();
+  // A spread needs room for the cover to lie flat to the left of the spine.
+  const spread = 2 * r.width + 24 <= vw;
+  const w = spread ? 2 * r.width : r.width;
+  const h = r.height;
+  // Cover-fit: the login page fills the open book, cropping the excess.
+  const scale = Math.max(w / vw, h / vh);
+  return {
+    vw,
+    vh,
+    spread,
+    pageW: r.width,
+    x: spread ? r.left - r.width : r.left,
+    y: r.top,
+    w,
+    h,
+    scale,
+    ox: (w - vw * scale) / 2,
+    oy: (h - vh * scale) / 2,
+  };
+}
+
+/** A non-interactive, viewport-sized copy of the login page. */
+function LoginReplica({
+  geo,
+  style,
+}: {
+  geo: Geometry;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      aria-hidden
+      inert
+      className="absolute left-0 top-0 origin-top-left"
+      style={{ width: geo.vw, height: geo.vh, ...style }}
+    >
+      <LoginSpread nextPath="/dates" />
+    </div>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
-  const [opening, setOpening] = useState(false);
+  const [phase, setPhase] = useState<Phase>("closed");
+  const [geo, setGeo] = useState<Geometry | null>(null);
+  const bookRef = useRef<HTMLDivElement>(null);
+  const timers = useRef<number[]>([]);
+
+  const later = useCallback((fn: () => void, ms: number) => {
+    timers.current.push(window.setTimeout(fn, ms));
+  }, []);
+
+  // So the cut to /login is instant once the zoom lands.
+  useEffect(() => {
+    router.prefetch("/login");
+  }, [router]);
+
+  // Keep the hidden in-book copy laid out for the current viewport so nothing
+  // has to mount or reflow on click.
+  useEffect(() => {
+    const update = () => {
+      if (bookRef.current) setGeo(measure(bookRef.current));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    const timeouts = timers.current;
+    return () => {
+      timeouts.forEach(window.clearTimeout);
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
 
   function openBook() {
-    if (opening) return;
-    setOpening(true);
-    // Match the CSS animation duration below
-    window.setTimeout(() => {
+    if (phase !== "closed" || !bookRef.current) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       router.push("/login");
-    }, 3000);
+      return;
+    }
+
+    // /login never scrolls, so drop our scrollbar now: the copy inside the
+    // book must be laid out at the same width /login will get.
+    document.documentElement.style.overflow = "hidden";
+    setGeo(measure(bookRef.current));
+    setPhase("opening");
+
+    later(() => {
+      // Re-measure now that the book has finished sliding into place.
+      if (bookRef.current) setGeo(measure(bookRef.current));
+      setPhase("settling");
+    }, OPEN_MS + 100);
   }
+
+  // Overlay mounts and fades in (CSS) → zoom → navigate.
+  useEffect(() => {
+    if (phase !== "settling") return;
+    later(() => setPhase("zooming"), SETTLE_MS);
+    later(() => router.push("/login"), SETTLE_MS + ZOOM_MS + 50);
+  }, [phase, later, router]);
+
+  const opening = phase !== "closed";
+  const zooming = phase === "zooming";
+  const spread = geo?.spread ?? false;
+
+  // Where the login copy sits inside the book's inner page (local coords).
+  const inBookTransform = geo
+    ? `translate(${(spread ? -geo.pageW : 0) - PAGE_INSET + geo.ox}px, ${
+        -PAGE_INSET + geo.oy
+      }px) scale(${geo.scale})`
+    : undefined;
+
+  // Overlay copy: starts exactly over the open book, ends filling the viewport.
+  // One keyframe animation (hold, then zoom — see `book-zoom` below) rather
+  // than a transition kicked off later: an element that is animating from the
+  // moment it mounts gets rasterised at its final scale, exactly like the copy
+  // inside the 3D book, so the crossfade between the two is invisible.
+  let overlayStyle: CSSProperties | undefined;
+  if (geo && (phase === "settling" || phase === "zooming")) {
+    const left = Math.max(0, -geo.ox / geo.scale);
+    const top = Math.max(0, -geo.oy / geo.scale);
+    const right = Math.max(0, geo.vw - left - geo.w / geo.scale);
+    const bottom = Math.max(0, geo.vh - top - geo.h / geo.scale);
+    overlayStyle = {
+      "--zoom-from": `translate(${geo.x + geo.ox}px, ${geo.y + geo.oy}px) scale(${geo.scale})`,
+      "--zoom-clip": `inset(${top}px ${right}px ${bottom}px ${left}px round ${
+        12 / geo.scale
+      }px)`,
+      animation: `book-zoom ${SETTLE_MS + ZOOM_MS}ms linear both`,
+    } as CSSProperties;
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-navy-deep px-6 py-16">
       {/* ambient warm glow */}
@@ -39,8 +218,15 @@ export default function Home() {
 
       {/* Stage — 3D perspective */}
       <div
-        className="relative"
-        style={{ perspective: "2200px", perspectiveOrigin: "50% 50%" }}
+        className={
+          "relative transition-opacity ease-out " +
+          (zooming ? "opacity-0" : "opacity-100")
+        }
+        style={{
+          perspective: "2200px",
+          perspectiveOrigin: "50% 50%",
+          transitionDuration: `${ZOOM_MS / 2}ms`,
+        }}
       >
         {/* soft floor shadow beneath the book */}
         <div
@@ -53,17 +239,29 @@ export default function Home() {
 
         {/* Book */}
         <div
-          className={
-            "relative h-[560px] w-[380px] sm:h-[640px] sm:w-[440px] md:h-[720px] md:w-[500px] transition-transform duration-[1200ms] ease-out " +
-            (opening ? "translate-x-[-6%]" : "")
-          }
-          style={{ transformStyle: "preserve-3d" }}
+          ref={bookRef}
+          className="relative h-[560px] w-[380px] transition-transform duration-[1200ms] ease-out sm:h-[640px] sm:w-[440px] md:h-[720px] md:w-[500px]"
+          style={{
+            transformStyle: "preserve-3d",
+            // A spread is centred on the spine; a single page keeps the old nudge.
+            transform: !opening
+              ? "translateX(0)"
+              : spread
+                ? "translateX(50%)"
+                : "translateX(-6%)",
+          }}
         >
           {/* Back cover (stays put) */}
           <div
             aria-hidden
             className="absolute inset-0 rounded-[6px_14px_14px_6px]"
             style={{
+              // Depth order while the cover swings: back cover (-2px) behind
+              // the inside page (-1px) behind the cover's hinge (+1px). Without
+              // explicit depths the 3D sort paints the page over the cover's
+              // spine edge mid-swing. ±2px at this perspective is <0.5px on
+              // screen, so the copy inside still lines up with the overlay.
+              transform: "translateZ(-2px)",
               background:
                 "linear-gradient(135deg, oklch(0.24 0.055 265) 0%, oklch(0.19 0.05 265) 60%, oklch(0.16 0.045 265) 100%)",
               boxShadow:
@@ -71,51 +269,22 @@ export default function Home() {
             }}
           />
 
-          {/* Inside pages — visible when cover opens */}
+          {/* Inside page — the login screen, scaled to fit the open book */}
           <div
             aria-hidden
             className="absolute inset-[10px] overflow-hidden rounded-[3px_10px_10px_3px]"
             style={{
+              // See the back cover's translateZ for why.
+              transform: "translateZ(-1px)",
               background:
                 "linear-gradient(90deg, oklch(0.86 0.04 82) 0%, oklch(0.94 0.028 85) 8%, oklch(0.94 0.028 85) 92%, oklch(0.86 0.04 82) 100%)",
               boxShadow:
                 "inset 12px 0 24px -12px oklch(0.60 0.06 45 / 0.5), inset 0 0 40px oklch(0.70 0.06 45 / 0.15)",
             }}
           >
-            {/* page edges/lines */}
-            <div
-              className="absolute inset-y-3 left-3 w-[3px] rounded"
-              style={{
-                background:
-                  "repeating-linear-gradient(180deg, oklch(0.80 0.04 80) 0 2px, oklch(0.70 0.06 60) 2px 3px)",
-              }}
-            />
-            <div
-              className="absolute inset-y-3 right-3 w-[3px] rounded"
-              style={{
-                background:
-                  "repeating-linear-gradient(180deg, oklch(0.80 0.04 80) 0 2px, oklch(0.70 0.06 60) 2px 3px)",
-              }}
-            />
-            {/* center gutter */}
-            <div
-              className="absolute inset-y-0 left-1/2 w-6 -translate-x-1/2"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent, oklch(0 0 0 / 0.18) 45%, oklch(0 0 0 / 0.28) 50%, oklch(0 0 0 / 0.18) 55%, transparent)",
-              }}
-            />
-            {/* faint handwritten preview */}
-            <div className="absolute left-6 right-1/2 top-10 pr-6 font-hand text-navy/40">
-              <p className="text-3xl leading-tight">to us,</p>
-              <p className="mt-2 text-xl leading-snug">
-                and every chapter we haven&apos;t written yet…
-              </p>
-            </div>
-            <div className="absolute right-6 top-16 font-display italic text-burgundy/50">
-              <p className="text-2xl">Chapter A</p>
-              <div className="mt-2 h-px w-24 bg-burgundy/30" />
-            </div>
+            {geo && (
+              <LoginReplica geo={geo} style={{ transform: inBookTransform }} />
+            )}
           </div>
 
           {/* Front cover — this is what rotates open */}
@@ -127,6 +296,14 @@ export default function Home() {
             style={{
               transformStyle: "preserve-3d",
               transitionTimingFunction: "cubic-bezier(0.6, 0.02, 0.32, 1)",
+              // Flat (180°) for a spread so the cover's back becomes the left
+              // page; leaned open otherwise so it clears the single page. The
+              // 1px lift keeps the hinge in front of the page (see back cover).
+              transform: !opening
+                ? "translateZ(1px) rotateY(0deg)"
+                : spread
+                  ? "translateZ(1px) rotateY(-180deg)"
+                  : "translateZ(1px) rotateY(-158deg)",
               background:
                 "linear-gradient(135deg, oklch(0.30 0.065 265) 0%, oklch(0.24 0.06 265) 45%, oklch(0.18 0.05 265) 100%)",
               boxShadow:
@@ -286,29 +463,29 @@ export default function Home() {
               }}
             />
 
-            {/* Back of the front cover (visible while opening) */}
+            {/* Back of the front cover — the inside cover page of the login
+                spread, so the open book already reads as the login screen */}
             <div
               aria-hidden
-              className="absolute inset-0 rounded-[6px_14px_14px_6px]"
+              className="absolute inset-0 overflow-hidden rounded-[14px_6px_6px_14px]"
               style={{
                 transform: "rotateY(180deg)",
                 backfaceVisibility: "hidden",
-                background:
-                  "linear-gradient(135deg, oklch(0.90 0.03 85) 0%, oklch(0.86 0.04 82) 100%)",
-                boxShadow: "inset 0 0 40px oklch(0.60 0.06 45 / 0.25)",
+                boxShadow: "inset 0 0 40px oklch(0 0 0 / 0.35)",
               }}
             >
-              <div className="flex h-full items-center justify-center">
-                <p className="font-hand text-2xl text-burgundy/70">
-                  ex libris — {INITIALS_HAND}
-                </p>
-              </div>
+              <InsideCover className="flex h-full" />
             </div>
           </div>
         </div>
 
         {/* CTA below the book */}
-        <div className="mt-10 flex flex-col items-center gap-3">
+        <div
+          className={
+            "mt-10 flex flex-col items-center gap-3 transition-opacity duration-700 " +
+            (opening ? "opacity-0" : "opacity-100")
+          }
+        >
           <button
             type="button"
             onClick={openBook}
@@ -328,9 +505,35 @@ export default function Home() {
         handmade · one of a kind · ours
       </p>
 
+      {/* Zoom overlay: a second copy of the login page, laid exactly over the
+          open book, that grows to fill the viewport before we navigate */}
+      {geo && overlayStyle && (
+        <div
+          className="fixed inset-0 z-50 overflow-hidden"
+          style={{ animation: `overlay-in ${SETTLE_MS}ms ease-out both` }}
+        >
+          <LoginReplica geo={geo} style={overlayStyle} />
+        </div>
+      )}
+
       <style>{`
+        @keyframes overlay-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        /* Hold over the open book while the overlay fades in, then zoom. */
+        @keyframes book-zoom {
+          0%, ${HOLD_PCT}% {
+            transform: var(--zoom-from);
+            clip-path: var(--zoom-clip);
+            animation-timing-function: ${ZOOM_EASE};
+          }
+          100% {
+            transform: translate(0px, 0px) scale(1);
+            clip-path: inset(0px 0px 0px 0px round 0px);
+          }
+        }
         .book-cover-open {
-          transform: rotateY(-158deg);
           box-shadow: 0 30px 60px -15px oklch(0 0 0 / 0.5) !important;
         }
       `}</style>
